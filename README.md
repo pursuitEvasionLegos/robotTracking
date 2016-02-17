@@ -17,7 +17,7 @@
 	- `mkdir build && cd build`
 	- `cmake -D CMAKE_BUILD_TYPE=Release -D
       CMAKE_INSTALL_PREFIX=/usr/local -D
-      OPENCV_EXTRA_MODULES=~/opencv_contrib ..`
+      OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules ..`
 	- `sudo make install`
 
 ### Testing OpenCV
