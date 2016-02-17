@@ -10,8 +10,8 @@
      libdc1394-22-dev`
 - Clone the repositories
 - `cd ~/`
-- `git clone git:itseez/opencv`
-- `git clone git:itseez/opencv_contrib`
+- `git clone https://github.com/itseez/opencv`
+- `git clone https://github.com/itseez/opencv_contrib`
 - `cd opencv`
 - `mkdir build && cd build`
 - `cmake -D CMAKE_BUILD_TYPE=Release -D
