@@ -10,13 +10,14 @@ import cv2
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-v", "--video",
-	help="path to the (optional) video file")
-ap.add_argument("-b", "--buffer", type=int, default=64,
-	help="max buffer size")
+ap.add_argument("-r", "--record", type=bool,
+                default=False, nargs="?",
+	        help="record a video")
 args = vars(ap.parse_args())
 
 
+shape = (864,480)
+sepShape = 10
 
 # define the lower and upper boundaries of the "green"
 # ball in the HSV color space, then initialize the
@@ -28,17 +29,22 @@ blueupper = (110,255,255)
 redlower = (0,50,50)
 redupper = (5,255,255)
 
-# if a video path was not supplied, grab the reference
-# to the webcam
-if not args.get("video", False):
-    camera = cv2.VideoCapture(1)
 
-# otherwise, grab a reference to the video file
-else:
-    camera = cv2.VideoCapture(args["video"])
+camera = cv2.VideoCapture(1)
+camera.set(3,shape[0])
+camera.set(4,shape[1])
+
+size = tuple(map(int,(camera.get(3),camera.get(4))))
 
 
-def circleRobot(lower,upper,hsv,name):
+if args["record"]:
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    movieSize = size[0]*2 + sepShape,size[1]*2 + sepShape
+    recorder = cv2.VideoWriter('simulation.avi',fourcc,20.0,movieSize)
+
+
+
+def findRobot(lower,upper,hsv):
     # construct a mask for the color "green", then perform
     # a series of dilations and erosions to remove any small
     # blobs left in the mask
@@ -52,11 +58,9 @@ def circleRobot(lower,upper,hsv,name):
     # (x, y) center of the ball
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
 		            cv2.CHAIN_APPROX_SIMPLE)[-2]
-    center = None
 
     hsvInRange = cv2.bitwise_and(hsv,hsv,mask=inRange)
     bgrInRange = cv2.cvtColor(hsvInRange,cv2.COLOR_HSV2BGR)
-    cv2.imshow(name,bgrInRange)
 
     # only proceed if at least one contour was found
     if len(cnts) > 0:
@@ -65,16 +69,20 @@ def circleRobot(lower,upper,hsv,name):
 	# centroid
 	c = max(cnts, key=cv2.contourArea)
 	((x, y), radius) = cv2.minEnclosingCircle(c)
-	M = cv2.moments(c)
-	center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
-	# only proceed if the radius meets a minimum size
-	if radius > 2:
-	    # draw the circle and centroid on the frame,
-	    # then update the list of tracked points
-	    cv2.circle(frame, (int(x), int(y)), int(radius),
-		       (0, 255, 255), 2)
-	    cv2.circle(frame, center, 5, (0, 0, 255), -1)
+	# draw the circle and centroid on the frame,
+	# then update the list of tracked points
+        if radius > 2:
+            return ((int(x),int(y)),int(radius)),bgrInRange
+        else:
+            return None,bgrInRange
+    else:
+        return None,bgrInRange
+
+def circleRobot(image,xy,radius):
+    cv2.circle(image, xy, radius,
+               (0, 255, 255), 2)
+    cv2.circle(image, xy, 5, (0, 0, 255), -1)
 
 
 
@@ -85,29 +93,57 @@ while True:
     # grab the current frame
     (grabbed, frame) = camera.read()
 
-    # if we are viewing a video and we did not grab a frame,
-    # then we have reached the end of the video
-    if args.get("video") and not grabbed:
-	break
+    if grabbed:
 
-    # resize the frame, blur it, and convert it to the HSV
-    # color space
-    frame = imutils.resize(frame, width=600)
-    blurred = cv2.GaussianBlur(frame, (11, 11), sigmaX=0)
-    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+        # resize the frame, blur it, and convert it to the HSV
+        # color space
+        frame = imutils.resize(frame)
 
-    circleRobot(greenlower,greenupper,hsv,"green")
-    circleRobot(bluelower,blueupper,hsv,"blue")
-    circleRobot(redlower,redupper,hsv,"red")
+        blurred = cv2.GaussianBlur(frame, (11, 11), sigmaX=0)
+        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-    # show the frame to our screen
-    cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
+        greenCircle,greenInRange = findRobot(greenlower,greenupper,hsv)
+        blueCircle,blueInRange = findRobot(bluelower,blueupper,hsv)
+        redCircle,redInRange = findRobot(redlower,redupper,hsv)
 
-    # if the 'q' key is pressed, stop the loop
-    if key == ord("q"):
-	break
+        if greenCircle:
+            circleRobot(frame,*greenCircle)
+        if blueCircle:
+            circleRobot(frame,*blueCircle)
+        if redCircle:
+            circleRobot(frame,*redCircle)
+
+        vertSep = np.zeros((sepShape,shape[0],3),dtype=np.uint8)
+        horrSep = np.zeros((shape[1],sepShape,3),dtype=np.uint8)
+        middSep = np.zeros((sepShape,sepShape,3),dtype=np.uint8)
+
+
+        vertSep += 100
+        horrSep += 100
+        middSep += 100
+
+
+        top = np.concatenate((frame,vertSep,greenInRange),axis=0)
+        mid = np.concatenate((horrSep,middSep,horrSep),axis=0)
+        bot = np.concatenate((redInRange,vertSep,blueInRange),axis=0)
+        combined = np.concatenate((top,mid,bot),axis=1)
+
+        # show the frame to our screen
+        cv2.imshow("combined",combined)
+        key = cv2.waitKey(1) & 0xFF
+
+        if args["record"]:
+            recorder.write(combined)
+
+        # if the 'q' key is pressed, stop the loop
+        if key == ord("q"):
+            break
+
 
 # cleanup the camera and close any open windows
 camera.release()
+
+if args["record"]:
+    recorder.release()
+
 cv2.destroyAllWindows()
