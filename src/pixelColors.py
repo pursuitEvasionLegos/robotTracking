@@ -6,13 +6,6 @@ import argparse
 import imutils
 
 
-# ap = argparse.ArgumentParser()
-# ap.add_argument("--image","-i")
-
-# args = vars(ap.parse_args())
-
-
-
 def print_mouse(event,x,y,flags,param):
     if event == 1:
         param["down"] = (y,x)
