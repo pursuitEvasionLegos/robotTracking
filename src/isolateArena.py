@@ -18,15 +18,11 @@ grabbed, image = camera.read()
 while not grabbed:
     grabbed, image = camera.read()
 
-ratio = image.shape[0] / 300.0
-orig = image.copy()
-image = imutils.resize(image, height = 300)
-
 # convert the image to grayscale, blur it, and find edges
 # in the image
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 gray = cv2.bilateralFilter(gray, 11, 17, 17)
-edged = cv2.Canny(gray, 30, 200)
+edged = cv2.Canny(gray, 100, 300)
 
 
 # find contours in the edged image, keep only the largest
@@ -34,17 +30,11 @@ edged = cv2.Canny(gray, 30, 200)
 _,cnts,_ = cv2.findContours(edged.copy(), cv2.RETR_TREE,
                             cv2.CHAIN_APPROX_SIMPLE)
 
+allContours = image.copy()
+cv2.drawContours(allContours,cnts,-1,color=(0,200,50),thickness=5)
+
 cv2.imshow("edged",edged)
-
-
-# loop over our contours
-approxCnts = []
-for c in cnts:
-    # approximate the contour
-    peri = cv2.arcLength(c, True)
-    approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-    if len(approx) <= 5 and len(approx) >= 3:
-        approxCnts.append(approx)
+cv2.imshow("all contours",allContours)
 
 def lenCnt(cnt):
     dist = 0.0
@@ -53,23 +43,16 @@ def lenCnt(cnt):
         dist += math.sqrt((c0[0] - c1[0])**2 + (c0[1] - c1[1])**2)
     return dist
 
-if approxCnts:
-
-    board = max(approxCnts,key=lenCnt)
-
-    imgCopy = image.copy()
-
-    for p0,p1 in zip(board[:-1],board[1:]):
-        p0 = p0[0]
-        p1 = p1[0]
-
-        cv2.line(imgCopy,tuple(p0),tuple(p1),color=(0,200,50),thickness=3)
-
-    for p in board:
-        p = p[0]
-        cv2.circle(imgCopy,tuple(p),radius=5,color=(50,0,200),thickness=-1)
-
-    cv2.imshow("countour",imgCopy)
-    cv2.waitKey(0)
-
+board = max(cnts,key=lenCnt)
+convexhull = image.copy()
+boardCH = cv2.convexHull(board)
+# cv2.drawContours(contourI,ch,-1,color=(0,200,50),thickness=5)
+for p0,p1 in zip(boardCH[:-1],boardCH[1:]):
+    p0,p1 = p0[0],p1[0]
+    cv2.line(convexhull,tuple(p0),tuple(p1),color=(0,200,50),thickness=5)
+for p in boardCH[:-1]:
+    p = p[0]
+    cv2.circle(convexhull,tuple(p),radius=3,color=(200,50,0),thickness=5)
+cv2.imshow("convex hull",convexhull)
+cv2.waitKey(0)
 cv2.destroyAllWindows()
