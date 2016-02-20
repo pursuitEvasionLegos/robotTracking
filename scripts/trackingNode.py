@@ -1,7 +1,8 @@
 """ The ROS Node for webcams used to track robots """
 
 import rospy
-import std_msgs
+import geometry_msgs
+import geometry_msgs.msg
 import cv2
 import numpy as np
 
@@ -12,9 +13,17 @@ class TrackingNode(object):
     def __init__(self,name="tracking_node",hz=30):
         rospy.init_node(name,anonymous=False)
 
-        self.pub = rospy.Publisher("locations",
-                                   std_msgs.msg.String,
-                                   queue_size=10)
+        self.green_pub = rospy.Publisher("location_green",
+                                         geometry_msgs.msg.Point,
+                                         queue_size=10)
+
+        self.blue_pub = rospy.Publisher("location_blue",
+                                        geometry_msgs.msg.Point,
+                                        queue_size=10)
+
+        self.red_pub = rospy.Publisher("location_red",
+                                       geometry_msgs.msg.Point,
+                                       queue_size=10)
 
         self.hz = hz
         self.rate = rospy.Rate(hz)
@@ -93,10 +102,20 @@ class TrackingNode(object):
             key = cv2.waitKey(1) & 0xFF
             done = rospy.is_shutdown() or (key == ord("q"))
 
-            msg = ("Circles: " + str(greenCircle)
-                   + str(blueCircle) + str(redCircle))
+            if greenCircle:
+                self.green_pub.publish(greenCircle[0][0],greenCircle[0][1],0)
+            else:
+                self.green_pub.publish(-1,-1,-1)
 
-            self.pub.publish(msg)
+            if blueCircle:
+                self.blue_pub.publish(blueCircle[0][0],blueCircle[0][1],0)
+            else:
+                self.blue_pub.publish(-1,-1,-1)
+
+            if redCircle:
+                self.red_pub.publish(redCircle[0][0],redCircle[0][1],0)
+            else:
+                self.red_pub.publish(-1,-1,-1)
 
             self.rate.sleep()
 
