@@ -28,7 +28,7 @@ def print_mouse(event,x,y,flags,param):
 
 
 
-camera = cv2.VideoCapture(1)
+camera = cv2.VideoCapture(2)
 grabbed,frame = camera.read()
 frame = imutils.resize(frame, width=600)
 hsvFrame = cv2.cvtColor(frame.copy(),cv2.COLOR_BGR2HSV)
